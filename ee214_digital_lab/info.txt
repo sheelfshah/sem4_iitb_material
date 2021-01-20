@@ -1,1 +1,1 @@
-week2: vhdl
+week1,2: vhdl
