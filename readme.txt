@@ -1,11 +1,11 @@
-week 7 almost ended(ref ee214)
+week 7 ended(ref ee214)
 
 notes status:
-	ee302: week6.2 done
-	ee621: week6.5 done
-	ee309: week5 done
+	ee302: week7 done
+	ee621: week7 done
+	ee309: week5.8 done #do next
 	ee238: week4.5 done
-	ee207: week6 done #do next
+	ee207: week6.5 done
 
 lab study status:
 	ee214: week7 done
@@ -13,4 +13,4 @@ lab study status:
 	ee337: week7 done
 
 assignments:
-	302
+	302 #doing
