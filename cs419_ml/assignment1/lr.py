@@ -15,51 +15,55 @@ but abc, a, b, etc. are not.
 
 """
 
+
 def normalize(df):
     global phase, means, ranges
     df = np.array(df, "float64")
-    if phase=="train":
+    if phase == "train":
         means = np.mean(df, axis=0)
         ranges = np.ptp(df, axis=0)
-        zeros = np.where(ranges==0)
+        zeros = np.where(ranges == 0)
         ranges[zeros] = 1
         means[zeros] = 0
-        return (df-means)/ranges
-    return (df-means)/ranges
+        return (df - means) / ranges
+    return (df - means) / ranges
 
 
 def one_hot(df, col_name, vals):
-    if len(vals)==2:
+    if len(vals) == 2:
         val = vals[0]
-        df[col_name + "_binary"] = df[col_name].apply(lambda x: 1 if x==val else 0)
+        df[col_name +
+            "_binary"] = df[col_name].apply(lambda x: 1 if x == val else 0)
         return df.drop(col_name, axis=1)
     for val in vals:
-        df[col_name + "_" + val] = df[col_name].apply(lambda x: 1 if x==val else 0)
+        df[col_name + "_" +
+            val] = df[col_name].apply(lambda x: 1 if x == val else 0)
     return df.drop(col_name, axis=1)
+
 
 def preprocess(df):
     df["bias"] = 1
 
-    df["company"] = df["name"].apply(lambda x : x.split()[0])
+    df["company"] = df["name"].apply(lambda x: x.split()[0])
 
     fuel_types = ["Diesel", "Petrol", "CNG", "LPG"]
     seller_types = ['Individual', 'Dealer', 'Trustmark Dealer']
     transmission_types = ['Manual', 'Automatic']
-    owner_types = ['First Owner','Second Owner', 'Third Owner',
-    'Fourth & Above Owner', 'Test Drive Car']
+    owner_types = ['First Owner', 'Second Owner', 'Third Owner',
+                   'Fourth & Above Owner', 'Test Drive Car']
     company_types = ['Maruti', 'Skoda', 'Honda', 'Hyundai',
-    'Toyota', 'Ford', 'Renault', 'Mahindra', 'Tata',
-    'Chevrolet', 'Fiat', 'Datsun', 'Jeep', 'Mercedes-Benz',
-    'Mitsubishi', 'Audi', 'Volkswagen', 'BMW', 'Nissan',
-    'Lexus', 'Jaguar', 'Land', 'MG', 'Volvo', 'Daewoo',
-    'Kia', 'Force', 'Ambassador', 'Ashok', 'Isuzu', 'Opel']
+                     'Toyota', 'Ford', 'Renault', 'Mahindra', 'Tata',
+                     'Chevrolet', 'Fiat', 'Datsun', 'Jeep', 'Mercedes-Benz',
+                     'Mitsubishi', 'Audi', 'Volkswagen', 'BMW', 'Nissan',
+                     'Lexus', 'Jaguar', 'Land', 'MG', 'Volvo', 'Daewoo',
+                     'Kia', 'Force', 'Ambassador', 'Ashok', 'Isuzu', 'Opel']
 
     col_and_type_dict = {
-    "fuel": fuel_types,
-    "seller_type": seller_types,
-    "transmission": transmission_types,
-    "owner": owner_types,
-    "company": company_types
+        "fuel": fuel_types,
+        "seller_type": seller_types,
+        "transmission": transmission_types,
+        "owner": owner_types,
+        "company": company_types
     }
 
     for col_name in col_and_type_dict.keys():
@@ -76,29 +80,30 @@ def preprocess(df):
 
     return normalize(df)
 
+
 def preprocess_basis(df):
     df["bias"] = 1
 
-    df["company"] = df["name"].apply(lambda x : x.split()[0])
+    df["company"] = df["name"].apply(lambda x: x.split()[0])
 
     fuel_types = ["Diesel", "Petrol", "CNG", "LPG"]
     seller_types = ['Individual', 'Dealer', 'Trustmark Dealer']
     transmission_types = ['Manual', 'Automatic']
-    owner_types = ['First Owner','Second Owner', 'Third Owner',
-    'Fourth & Above Owner', 'Test Drive Car']
+    owner_types = ['First Owner', 'Second Owner', 'Third Owner',
+                   'Fourth & Above Owner', 'Test Drive Car']
     company_types = ['Maruti', 'Skoda', 'Honda', 'Hyundai',
-    'Toyota', 'Ford', 'Renault', 'Mahindra', 'Tata',
-    'Chevrolet', 'Fiat', 'Datsun', 'Jeep', 'Mercedes-Benz',
-    'Mitsubishi', 'Audi', 'Volkswagen', 'BMW', 'Nissan',
-    'Lexus', 'Jaguar', 'Land', 'MG', 'Volvo', 'Daewoo',
-    'Kia', 'Force', 'Ambassador', 'Ashok', 'Isuzu', 'Opel']
+                     'Toyota', 'Ford', 'Renault', 'Mahindra', 'Tata',
+                     'Chevrolet', 'Fiat', 'Datsun', 'Jeep', 'Mercedes-Benz',
+                     'Mitsubishi', 'Audi', 'Volkswagen', 'BMW', 'Nissan',
+                     'Lexus', 'Jaguar', 'Land', 'MG', 'Volvo', 'Daewoo',
+                     'Kia', 'Force', 'Ambassador', 'Ashok', 'Isuzu', 'Opel']
 
     col_and_type_dict = {
-    "fuel": fuel_types,
-    "seller_type": seller_types,
-    "transmission": transmission_types,
-    "owner": owner_types,
-    "company": company_types
+        "fuel": fuel_types,
+        "seller_type": seller_types,
+        "transmission": transmission_types,
+        "owner": owner_types,
+        "company": company_types
     }
 
     for col_name in col_and_type_dict.keys():
@@ -114,9 +119,9 @@ def preprocess_basis(df):
     df.replace(np.nan, 0, inplace=True)
 
     df.drop(["Index", "name", "torque"], axis=1, inplace=True)
-    
 
     return normalize(df)
+
 
 def get_features(file_path):
     # Given a file path , return feature matrix and target labels
@@ -129,8 +134,9 @@ def get_features(file_path):
     phi = preprocess(df)
     return phi, None
 
+
 def get_features_basis(file_path):
-    # Given a file path , return feature matrix and target labels 
+    # Given a file path , return feature matrix and target labels
     global phase
     df = pd.read_csv(file_path)
     if phase != "test":
@@ -140,30 +146,34 @@ def get_features_basis(file_path):
     phi = preprocess_basis(df)
     return phi, None
 
-def compute_RMSE(phi, w , y) :
+
+def compute_RMSE(phi, w, y):
     # Root Mean Squared Error
     diff = phi@w - y
-    error = (diff*diff).sum()/len(diff)
+    error = (diff * diff).sum() / len(diff)
     error = np.sqrt(error)
     return error
+
 
 def generate_output(phi_test, w):
     df = pd.DataFrame(phi_test@w)
     df[0] = df[0].apply(lambda x: max(-x, x))
     df.to_csv("output.csv")
-    
+
+
 def closed_soln(phi, y):
     # Function returns the solution w for Xw=y.
     return np.linalg.pinv(phi).dot(y)
-    
-def gradient_descent(phi, y, phi_dev, y_dev) :
+
+
+def gradient_descent(phi, y, phi_dev, y_dev):
     # Implement gradient_descent using Mean Squared Error Loss
     # You may choose to use the dev set to determine point of convergence
     w = np.random.normal(0, 0.1, phi.shape[1])
-    epochs=int(1e5) # max_num_of_epochs
+    epochs = int(1e5)  # max_num_of_epochs
     lr = 2e-4
     prev_val_rmse = compute_RMSE(phi_dev, w, y_dev)
-    ch=[]
+    ch = []
     for ep in range(epochs):
         err = (phi.T@(phi@w - y))
         w = w - lr * err
@@ -177,20 +187,21 @@ def gradient_descent(phi, y, phi_dev, y_dev) :
     # plt.show()
     return w
 
-def sgd(phi, y, phi_dev, y_dev) :
+
+def sgd(phi, y, phi_dev, y_dev):
     # Implement stochastic gradient_descent using Mean Squared Error Loss
     # You may choose to use the dev set to determine point of convergence
     w = np.random.normal(0, 0.1, phi.shape[1])
-    epochs=int(1e5) # max_num_of_epochs
+    epochs = int(1e5)  # max_num_of_epochs
     lr = 1e-4
     prev_val_rmse = compute_RMSE(phi_dev, w, y_dev)
-    ch=[]
+    ch = []
     perm = np.random.RandomState(seed=0).permutation(len(phi))
-    batch_size=128
+    batch_size = 128
     for ep in range(epochs):
         phi_, y_ = phi[perm], y[perm]
-        for batch_i in range(len(phi)//batch_size):
-            low, high = batch_i*batch_size, (batch_i+1)*batch_size
+        for batch_i in range(len(phi) // batch_size):
+            low, high = batch_i * batch_size, (batch_i + 1) * batch_size
             err = (phi_[low:high].T@(phi_[low:high]@w - y_[low:high]))
             w = w - lr * err
         val_rmse = compute_RMSE(phi_dev, w, y_dev)
@@ -204,31 +215,32 @@ def sgd(phi, y, phi_dev, y_dev) :
     return w
 
 
-def pnorm(phi, y, phi_dev, y_dev, p) :
+def pnorm(phi, y, phi_dev, y_dev, p):
     # Implement gradient_descent with p-norm regularisation using Mean Squared Error Loss
     # You may choose to use the dev set to determine point of convergence
     w = np.random.normal(0, 0.1, phi.shape[1])
-    epochs=int(1e5) # max_num_of_epochs
+    epochs = int(1e5)  # max_num_of_epochs
     lr = 1e-4
     lambda_reg2 = 2e-1
     lambda_reg4 = 3e-17
     prev_val_rmse = compute_RMSE(phi_dev, w, y_dev)
-    ch=[]
+    ch = []
     for ep in range(epochs):
-        if p==2:
-            err = (phi.T@(phi@w - y)) +  p * w**(p-2) * lambda_reg2 * w
+        if p == 2:
+            err = (phi.T@(phi@w - y)) + p * w**(p - 2) * lambda_reg2 * w
         else:
-            err = (phi.T@(phi@w - y)) +  p * w**(p-2) * lambda_reg4 * w
+            err = (phi.T@(phi@w - y)) + p * w**(p - 2) * lambda_reg4 * w
         w = w - lr * err
         val_rmse = compute_RMSE(phi_dev, w, y_dev)
         if prev_val_rmse < val_rmse:
             break
         prev_val_rmse = val_rmse
-    return w   
+    return w
+
 
 def plot(phi, y, phi_dev, y_dev):
-    sizes =  [2000, 2500, 3000, len(phi)]
-    rmses=[]
+    sizes = [2000, 2500, 3000, len(phi)]
+    rmses = []
     for size in sizes:
         phi_ = phi[:size]
         y_ = y[:size]
@@ -257,16 +269,16 @@ def main():
     r1 = compute_RMSE(phi_dev, w1, y_dev)
     r2 = compute_RMSE(phi_dev, w2, y_dev)
     print('1a: ')
-    print(abs(r1-r2))
+    print(abs(r1 - r2))
     w3 = sgd(phi, y, phi_dev, y_dev)
     r3 = compute_RMSE(phi_dev, w3, y_dev)
     print('1c: ')
-    print(abs(r2-r3))
+    print(abs(r2 - r3))
     print(r1, r2, r3)
 
     ######## Task 2 #########
-    w_p2 = pnorm(phi, y, phi_dev, y_dev, 2)  
-    w_p4 = pnorm(phi, y, phi_dev, y_dev, 4)  
+    w_p2 = pnorm(phi, y, phi_dev, y_dev, 2)
+    w_p4 = pnorm(phi, y, phi_dev, y_dev, 4)
     r_p2 = compute_RMSE(phi_dev, w_p2, y_dev)
     r_p4 = compute_RMSE(phi_dev, w_p4, y_dev)
     print('2: pnorm2')
@@ -287,6 +299,8 @@ def main():
     print(rmse_basis)
 
     # Task 6
+    # w_basis_new = pnorm(phi_basis, y, phi_dev, y_dev, 4)
+    # failed
     generate_output(phi_test, w_basis)
 
 main()
