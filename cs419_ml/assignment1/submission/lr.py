@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib
 import matplotlib.pyplot as plt
+from copy import deepcopy as dcopy
 
 # Global variables
 phase = "train"  # phase can be set to either "train" or "eval"
@@ -42,9 +43,11 @@ def one_hot(df, col_name, vals):
 
 
 def preprocess(df):
+    global model_types
     df["bias"] = 1
 
     df["company"] = df["name"].apply(lambda x: x.split()[0])
+    df["model"] = df["name"].apply(lambda x: x.split()[1])
 
     fuel_types = ["Diesel", "Petrol", "CNG", "LPG"]
     seller_types = ['Individual', 'Dealer', 'Trustmark Dealer']
@@ -57,13 +60,16 @@ def preprocess(df):
                      'Mitsubishi', 'Audi', 'Volkswagen', 'BMW', 'Nissan',
                      'Lexus', 'Jaguar', 'Land', 'MG', 'Volvo', 'Daewoo',
                      'Kia', 'Force', 'Ambassador', 'Ashok', 'Isuzu', 'Opel']
+    if phase == "train":
+        model_types = df["model"].unique()
 
     col_and_type_dict = {
         "fuel": fuel_types,
         "seller_type": seller_types,
         "transmission": transmission_types,
         "owner": owner_types,
-        "company": company_types
+        "company": company_types,
+        "model": model_types
     }
 
     for col_name in col_and_type_dict.keys():
@@ -82,9 +88,11 @@ def preprocess(df):
 
 
 def preprocess_basis(df):
+    global model_types
     df["bias"] = 1
 
     df["company"] = df["name"].apply(lambda x: x.split()[0])
+    df["model"] = df["name"].apply(lambda x: x.split()[1])
 
     fuel_types = ["Diesel", "Petrol", "CNG", "LPG"]
     seller_types = ['Individual', 'Dealer', 'Trustmark Dealer']
@@ -97,13 +105,16 @@ def preprocess_basis(df):
                      'Mitsubishi', 'Audi', 'Volkswagen', 'BMW', 'Nissan',
                      'Lexus', 'Jaguar', 'Land', 'MG', 'Volvo', 'Daewoo',
                      'Kia', 'Force', 'Ambassador', 'Ashok', 'Isuzu', 'Opel']
+    if phase == "train":
+        model_types = df["model"].unique()
 
     col_and_type_dict = {
         "fuel": fuel_types,
         "seller_type": seller_types,
         "transmission": transmission_types,
         "owner": owner_types,
-        "company": company_types
+        "company": company_types,
+        "model": model_types
     }
 
     for col_name in col_and_type_dict.keys():
@@ -157,7 +168,7 @@ def compute_RMSE(phi, w, y):
 
 def generate_output(phi_test, w):
     df = pd.DataFrame(phi_test@w)
-    df[0] = df[0].apply(lambda x: max(-x, x))
+    df[0] = df[0].apply(lambda x: max(-x / 2, x))
     df.to_csv("output.csv")
 
 
@@ -166,65 +177,76 @@ def closed_soln(phi, y):
     return np.linalg.pinv(phi).dot(y)
 
 
-def gradient_descent(phi, y, phi_dev, y_dev):
+def gradient_descent(phi, y, phi_dev, y_dev, patience=10):
     # Implement gradient_descent using Mean Squared Error Loss
     # You may choose to use the dev set to determine point of convergence
     w = np.random.normal(0, 0.1, phi.shape[1])
     epochs = int(1e5)  # max_num_of_epochs
-    lr = 2e-4
+    lr = 3e-4
     prev_val_rmse = compute_RMSE(phi_dev, w, y_dev)
     ch = []
+    pat_cnt = 0
     for ep in range(epochs):
         err = (phi.T@(phi@w - y))
         w = w - lr * err
         val_rmse = compute_RMSE(phi_dev, w, y_dev)
         if prev_val_rmse < val_rmse:
-            break
+            if pat_cnt > patience:
+                break
+            pat_cnt += 1
+            continue
+        pat_cnt = 0
         prev_val_rmse = val_rmse
+        w_best = dcopy(w)
         # ch.append(val_rmse)
     # print(ep)
     # plt.plot(ch[300:])
     # plt.show()
-    return w
+    return w_best
 
 
-def sgd(phi, y, phi_dev, y_dev):
+def sgd(phi, y, phi_dev, y_dev, patience=10):
     # Implement stochastic gradient_descent using Mean Squared Error Loss
     # You may choose to use the dev set to determine point of convergence
     w = np.random.normal(0, 0.1, phi.shape[1])
     epochs = int(1e5)  # max_num_of_epochs
-    lr = 1e-4
+    lr = 3e-3
     prev_val_rmse = compute_RMSE(phi_dev, w, y_dev)
+    perm = np.random.permutation(len(phi))
     ch = []
-    perm = np.random.RandomState(seed=0).permutation(len(phi))
-    batch_size = 128
+    pat_cnt = 0
     for ep in range(epochs):
         phi_, y_ = phi[perm], y[perm]
-        for batch_i in range(len(phi) // batch_size):
-            low, high = batch_i * batch_size, (batch_i + 1) * batch_size
-            err = (phi_[low:high].T@(phi_[low:high]@w - y_[low:high]))
+        for i in range(len(phi)):  # use approximately 75% of data
+            err = (phi_[i].T * (phi_[i]@w - y_[i]))
             w = w - lr * err
         val_rmse = compute_RMSE(phi_dev, w, y_dev)
         if prev_val_rmse < val_rmse:
-            break
+            if pat_cnt > patience:
+                break
+            pat_cnt += 1
+            continue
+        pat_cnt = 0
         prev_val_rmse = val_rmse
+        w_best = dcopy(w)
     #     ch.append(val_rmse)
     # print(ep)
-    # plt.plot(ch[300:])
+    # plt.plot(ch)
     # plt.show()
-    return w
+    return w_best
 
 
-def pnorm(phi, y, phi_dev, y_dev, p):
+def pnorm(phi, y, phi_dev, y_dev, p, patience=10):
     # Implement gradient_descent with p-norm regularisation using Mean Squared Error Loss
     # You may choose to use the dev set to determine point of convergence
     w = np.random.normal(0, 0.1, phi.shape[1])
     epochs = int(1e5)  # max_num_of_epochs
-    lr = 1e-4
-    lambda_reg2 = 2e-1
-    lambda_reg4 = 3e-17
+    lr = 3e-4
+    lambda_reg2 = 1e-2
+    lambda_reg4 = 1e-17
     prev_val_rmse = compute_RMSE(phi_dev, w, y_dev)
     ch = []
+    pat_cnt = 0
     for ep in range(epochs):
         if p == 2:
             err = (phi.T@(phi@w - y)) + p * w**(p - 2) * lambda_reg2 * w
@@ -233,8 +255,13 @@ def pnorm(phi, y, phi_dev, y_dev, p):
         w = w - lr * err
         val_rmse = compute_RMSE(phi_dev, w, y_dev)
         if prev_val_rmse < val_rmse:
-            break
+            if pat_cnt > patience:
+                break
+            pat_cnt += 1
+            continue
+        pat_cnt = 0
         prev_val_rmse = val_rmse
+        w_best = dcopy(w)
     return w
 
 
@@ -244,7 +271,7 @@ def plot(phi, y, phi_dev, y_dev):
     for size in sizes:
         phi_ = phi[:size]
         y_ = y[:size]
-        w = pnorm(phi_, y_, phi_dev, y_dev, 2)
+        w = gradient_descent(phi_, y_, phi_dev, y_dev)
         rmses.append(compute_RMSE(phi_dev, w, y_dev))
     plt.plot(sizes, rmses)
     plt.xlabel(xlabel="Training Size")
@@ -299,8 +326,7 @@ def main():
     print(rmse_basis)
 
     # Task 6
-    # w_basis_new = pnorm(phi_basis, y, phi_dev, y_dev, 4)
-    # failed
+    w_basis_new = pnorm(phi_basis, y, phi_dev, y_dev, 2)
     generate_output(phi_test, w_basis)
 
 main()
