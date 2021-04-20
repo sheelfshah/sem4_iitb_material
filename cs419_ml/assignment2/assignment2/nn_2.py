@@ -7,14 +7,6 @@ import os
 np.random.seed(42)
 
 
-def disablePrint():
-    sys.stdout = open(os.devnull, 'w')
-
-
-def enablePrint():
-    sys.stdout = sys.__stdout__
-
-
 def softmax(logits):
     """
     Implement the softmax function
@@ -193,7 +185,7 @@ class Neural_Net():
 
         return dW, dB
 
-    def train(self, optimizer, _lambda, batch_size, max_epochs, train_input, train_target, val_input, val_target):
+    def train(self, optimizer, _lambda, batch_size, max_epochs, train_input, train_target, val_input, val_target, patience):
         """
         Here you will run backpropagation for max_epochs number of epochs and evaluate 
         the neural network on validation data.For each batch of data in each epoch you 
@@ -202,6 +194,9 @@ class Neural_Net():
 
         Note : Most of the things here are already implemented.However, you are welcome to change it for part 2 of the assignment.
         """
+
+        val_losses = []
+
         for epoch in range(max_epochs):
             idxs = np.arange(train_input.shape[0])
             np.random.shuffle(idxs)  # shuffle the indices
@@ -225,6 +220,18 @@ class Neural_Net():
 
                 self.weights, self.biases = optimizer.step(
                     self.weights, self.biases, dW, db)  # update the weights
+
+            val_probs = self.forward(val_input)
+            val_loss = cross_entropy_loss(val_probs, val_target)
+            val_losses.append(val_loss)
+            if val_loss == min(val_losses):
+                best_model = dcopy(self)
+                min_val_loss = val_loss
+            if len(val_losses) >= patience:
+                if min(val_losses[-patience:]) > min_val_loss:
+                    # val losses have been going up
+                    break
+
             if epoch % 5 == 0:
                 train_probs = self.forward(train_input)
                 val_probs = self.forward(val_input)
@@ -235,11 +242,11 @@ class Neural_Net():
                 val_acc = check_accuracy(self.predict(val_input), val_target)
                 print("train_loss = {:.3f}, val_loss = {:.3f}, train_acc={:.3f}, val_acc={:.3f}".format(
                     train_loss, val_loss, train_acc, val_acc))
-        train_probs = self.forward(train_input)
-        val_probs = self.forward(val_input)
+        train_probs = best_model.forward(train_input)
+        val_probs = best_model.forward(val_input)
         train_loss = cross_entropy_loss(train_probs, train_target)
         val_loss = cross_entropy_loss(val_probs, val_target)
-        return train_loss, val_loss
+        return train_loss, val_loss, best_model
 
     def predict(self, X):
         """
@@ -318,49 +325,26 @@ def read_data():
 
 
 if __name__ == '__main__':
-    max_epochs = 100
+    max_epochs = 10**4
     batch_size = 128
     learning_rate = 0.1
-    num_layers = 1
-    num_units = 64
+    num_layers = 2
+    num_units = 512
     _lambda = 1e-5
+    patience = 20
 
     train_x, train_y, val_x, val_y, test_x = read_data()
     net = Neural_Net(num_layers, num_units, train_x.shape[1], 26)
     optimizer = Optimizer(learning_rate=learning_rate)
-    net.train(optimizer, _lambda, batch_size,
-              max_epochs, train_x, train_y, val_x, val_y)
+    train_loss, val_loss, best_net = net.train(optimizer, _lambda, batch_size,
+                                               max_epochs, train_x, train_y, val_x, val_y, patience)
 
-    test_preds = net.predict(test_x)
+    print(train_loss, val_loss)
 
+    y_test_pred = best_net.predict(test_x).reshape(-1, 1)
+    id_col = np.array(list(range(0, len(y_test_pred)))).reshape(-1, 1)
+    np_test = np.concatenate((id_col, y_test_pred), axis=1)
+    df_test = pd.DataFrame(np_test, index=None, columns=["id", "letters"])
+    df_test["letters"] = df_test["letters"].apply(lambda x: chr(ord('A') + x))
 
-def part1b():
-    hyp_pars = pd.read_csv("part_1b.csv").to_dict()
-
-    for i in range(len(hyp_pars["Learning Rate"])):
-        train_x, train_y, val_x, val_y, test_x = read_data()
-        np.random.seed(42)
-
-        max_epochs = 100
-        batch_size = 128
-        learning_rate = hyp_pars["Learning Rate"][i]
-        num_layers = hyp_pars["No. of hidden layers"][i]
-        num_units = hyp_pars["Size of each hidden layer"][i]
-        _lambda = hyp_pars["λ(regulariser)"][i]
-
-        net = Neural_Net(num_layers, num_units, train_x.shape[1], 26)
-        optimizer = Optimizer(learning_rate=learning_rate)
-
-        disablePrint()
-        train_loss, val_loss = net.train(optimizer, _lambda, batch_size,
-                                         max_epochs, train_x, train_y, val_x, val_y)
-        enablePrint()
-
-        hyp_pars["Mean Cross Entropy loss(train)"][i] = train_loss
-        hyp_pars["Mean Cross Entropy loss(val)"][i] = val_loss
-
-        for key in hyp_pars.keys():
-            print(key, hyp_pars[key][i], end=" | ", flush=True)
-        print()
-
-    return hyp_pars
+    df_test.to_csv("test_pred.csv", index=None)
