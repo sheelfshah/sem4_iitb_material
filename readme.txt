@@ -8,11 +8,15 @@ notes status:
 	ee207: week1 done
 	cs419: week0.3 done
 
-lab study status:
-	ee214: full done
-	ee240: week4 done
-	ee337: full done
-
-assignments:
-	302, 309, 302
+endsem timetable:
+	26th = monday
+	mon: 309
+	tue: -
+	wed: 302
+	thu: 207
+	fri: -
+	sat: -
+	mon: 419
+	tue: 238
+	wed: 621
 	

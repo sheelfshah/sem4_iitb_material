@@ -1,0 +1,3 @@
+".\Objects\handler.obj" 
+TO ".\Objects\ass1_demo2" 
+PRINT(".\Listings\ass1_demo2.m51") RAMSIZE(256) 

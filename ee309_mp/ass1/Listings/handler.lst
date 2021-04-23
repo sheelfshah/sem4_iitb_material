@@ -1,0 +1,242 @@
+A51 MACRO ASSEMBLER  HANDLER                                                              04/21/2021 13:02:02 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.2.7.0
+OBJECT MODULE PLACED IN .\Objects\handler.obj
+ASSEMBLER INVOKED BY: D:\Program Files\Keil\C51\BIN\A51.EXE handler.asm SET(SMALL) DEBUG PRINT(.\Listings\handler.lst) O
+                      BJECT(.\Objects\handler.obj) EP
+
+LOC  OBJ            LINE     SOURCE
+
+                       1     ; RAM allocation
+  0040                 2     CUR_ST  DATA 40H
+  0041                 3     DgtCode DATA 41H
+  0042                 4     KeyCode DATA 42H
+  0043                 5     KeyNo   DATA 43H
+  0044                 6     KeyIndx DATA 44H
+  0050                 7     KeyBuf  DATA 50H
+  006F                 8     STACKST EQU  6FH
+                       9     
+                      10     ; Assume a 24 MHZ crystal
+                      11     ; Counts for a 25 ms delay are:
+  003C                12     TH0COUNT EQU 3CH
+  00B0                13     TL0COUNT EQU 0B0H
+                      14     
+  0044                15     KEY_INDEX EQU 44H           ; Location to store input index of circular bufferstate will be
+                              stored:
+  0041                16     PressedKey EQU 41H      ; Location key code for the pressed key will be stored here
+                      17                                                     ; F0 in PSW will be used to store the answe
+                             r from tests
+                      18     
+0000                  19     org 0000H
+0000 020100           20     ljmp Init
+                      21     
+000B                  22     org 000bh               ; T0 interrupt vector
+000B 020030           23     LJMP T0_INTR            ; Jump to interrupt handler
+                      24     
+0030                  25     org 0030H       
+0030                  26     T0_INTR: 
+0030 C28C             27     CLR TR0                         ; Stop the timer
+0032 758C3C           28     MOV TH0, #TH0COUNT      ; Re-load counts for 25 ms delay
+0035 758AB0           29     MOV TL0, #TL0COUNT
+0038 D28C             30     SETB TR0                ; Restart T0
+003A D2A9             31     SETB ET0                ; Re-enable interrupts from T0
+003C 020060           32     LJMP FSM                ; Now manage the FSM
+                      33     
+0060                  34     ORG 0060H
+0060                  35     FSM: 
+0060 C0E0             36     PUSH ACC
+0062 C0D0             37     PUSH PSW
+0064 C083             38     PUSH DPH
+0066 C082             39     PUSH DPL
+                      40      
+0068 1177             41     ACALL DO_TEST           ; Peform the test for this state
+006A 1183             42     ACALL DO_ACTION         ; Perform the action based on test answer
+006C 1195             43     ACALL SET_NEXT          ; Set current state = next state
+                      44                                                     ; and return, cleaning up as we go
+006E D082             45     POP DPL
+0070 D083             46     POP DPH
+0072 D0D0             47     POP PSW
+0074 D0E0             48     POP ACC
+                      49     ; RET for testing
+0076 32               50     RETI
+                      51     
+0077                  52     DO_TEST:
+0077 E540             53     MOV A, CUR_ST           ; Fetch the current state
+0079 9000A4           54     MOV DPTR, #Test_Tab     ; Table of test numbers
+007C 93               55     MOVC A, @A + DPTR       ; Get the test number for this state
+A51 MACRO ASSEMBLER  HANDLER                                                              04/21/2021 13:02:02 PAGE     2
+
+007D 9000B8           56     MOV DPTR, #Test_Jmp     ; Jump table for tests
+0080 25E0             57     ADD A, ACC              ; A = 2A: each entry is 2 bytes
+0082 73               58     jmp @A + DPTR           ; Jump to the selected test
+                      59                                                     ; Note that selected test will do ret.
+                      60     
+0083                  61     DO_ACTION:
+0083 9000A8           62     MOV DPTR, #Yes_Actions
+0086 20D503           63     JB F0, Sel_Action       ; If test answer = yes, DPTR is correct
+0089 9000AC           64     MOV DPTR, #No_Actions   ; If Test returned no, modify DPTR
+008C                  65     Sel_Action:             ; Now look up the action to be taken
+008C E540             66     MOV A, CUR_ST           ; Fetch the current state
+008E 93               67     MOVC A, @A+DPTR       ; and look up the action number
+008F 9000BC           68     MOV DPTR, #Action_jmp   ; Jump table for actions
+0092 25E0             69     ADD A, ACC              ; A = 2A : offset in Action jump table
+                      70                                                     ; because each entry is 2 bytes
+0094 73               71     JMP @A + DPTR           ; Jump to the selected action
+                      72                                                     ; Note that the select action will do ret
+                      73                                                 
+0095                  74     SET_NEXT:
+0095 9000B0           75     MOV DPTR, #Yes_Next     ; Array of next states for yes answer
+0098 20D503           76     JB F0, Sel_Next         ; If answer was yes, DPTR is correct
+009B 9000B4           77     MOV DPTR, #No_Next      ; Else correct the DPTR to no answer
+009E                  78     Sel_Next:
+009E E540             79     MOV A, CUR_ST           ; get the current state
+00A0 93               80     MOVC A, @A+DPTR         ; get the next state
+00A1 F540             81     MOV CUR_ST, A           ; and save it as current state
+00A3 22               82     RET 
+                      83     
+00A4 00010101         84     Test_Tab:    DB 0, 1, 1, 1
+00A8 01020000         85     Yes_Actions: DB 1, 2, 0, 0
+00AC 00000000         86     No_Actions:  DB 0, 0, 0, 0
+00B0 01020202         87     Yes_Next:    DB 1, 2, 2, 2
+00B4 00000300         88     No_Next:     DB 0, 0, 3, 0
+                      89             
+00B8                  90     Test_Jmp:
+00B8 01C2             91     AJMP AnyKey
+00BA 01D1             92     AJMP TheKey
+                      93     
+00BC                  94     Action_Jmp:
+00BC 01E6             95     AJMP DoNothing
+00BE 01E7             96     AJMP FindKey
+00C0 01F5             97     AJMP ReportKey
+                      98     
+00C2                  99     AnyKey:
+00C2 75800F          100     MOV P0, #0FH             ; 0 rows, 1 columns
+                     101                                                      ; if key pressed, one column gets pulled t
+                             o 0 
+00C5 E580            102     MOV A, P0                ; now read the port to check if value changed
+00C7 B40F04          103     CJNE A, #0FH, key_was_pressed; if key pressed, then ls_nibble won't be F
+00CA C2D5            104     CLR F0; as has been asked
+00CC 01D0            105     AJMP exit_any_key
+00CE                 106     key_was_pressed:
+00CE D2D5            107     SETB F0; as has been asked
+00D0 22              108     exit_any_key: RET
+                     109     
+00D1                 110     TheKey:
+00D1 75800F          111     MOV P0, #0FH             ; 0 rows, 1 columns
+                     112                                                      ; if key pressed, one column gets pulled t
+                             o 0 
+00D4 E580            113     MOV A, P0                ; now read the port to check if value changed
+00D6 44F0            114     ORL A, #0F0H             ; make all rows 1 but keep the columns as they were
+00D8 F580            115     MOV P0, A
+00DA E580            116     MOV A, P0                ; get the key code
+00DC B54104          117     CJNE A, PressedKey, THE_KEY_NOT_PRESSED
+00DF D2D5            118     SETB F0
+00E1 01E5            119     AJMP FIN2
+A51 MACRO ASSEMBLER  HANDLER                                                              04/21/2021 13:02:02 PAGE     3
+
+00E3 C2D5            120     THE_KEY_NOT_PRESSED: CLR F0
+00E5 22              121     FIN2: RET
+                     122     
+00E6                 123     DoNothing:
+00E6 22              124     RET
+                     125     
+00E7                 126     FindKey:
+00E7 75800F          127     MOV P0, #0FH             ; write 0 to all rows and 1 to all columns
+00EA E580            128     MOV A, P0                ; read the port
+00EC 44F0            129     ORL A, #0F0H             ; write 1 to all rows and write back the read value to the columns
+00EE F580            130     MOV P0, A
+00F0 E580            131     MOV A, P0
+00F2 F541            132     MOV PressedKey, A        ; store key code in PressedKey
+00F4 22              133     RET
+                     134     
+00F5                 135     ReportKey:
+00F5 D2D3            136     SETB RS0                 ; activate register bank 1
+00F7 C2D4            137     CLR RS1
+00F9 7450            138     MOV A, #50H              ; initialise to starting of circular buffer
+00FB 2544            139     ADD A, KEY_INDEX         ; add index value
+00FD F8              140     MOV R0, A                ; move to an indirectly addressable register
+00FE A641            141     MOV @R0, PressedKey      ; move value of PressedKey to the address pointed by R0
+0100 0544            142     INC KEY_INDEX            ; increment index
+0102 534407          143     ANL KEY_INDEX, #07H      ; reset if crosses 7H
+0105 22              144     RET
+                     145       
+0100                 146     ORG 0100H
+0100                 147     Init:
+0100 758177          148     MOV SP, #77H             ; SP to top of 8051 memory
+0103 754000          149     MOV CUR_ST, #00H         ; Initialize current state to Idle
+0106 754400          150     MOV KEY_INDEX, #00H      ; initialize input index of circular buffer to 0
+0109 C28C            151     CLR TR0                                  ; Stop the timer (if running)
+010B 758C3C          152     MOV TH0, #TH0COUNT       ; Load T0 counts for 25 ms delay
+010E 758AB0          153     MOV TL0, #TL0COUNT
+0111 D2A9            154     SETB ET0                 ; Enable interrupts from T0
+0113 D2AF            155     SETB EA                  ; Enable interrupts globally
+0115 D28C            156     SETB TR0                 ; Start T0 timer
+0117 020030          157     LJMP T0_INTR                     ; place a jump to ISR here for testing purposes
+                     158     
+011A 80FE            159     L1: sjmp L1
+                     160     END
+A51 MACRO ASSEMBLER  HANDLER                                                              04/21/2021 13:02:02 PAGE     4
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E              T Y P E  V A L U E   ATTRIBUTES
+
+ACC . . . . . . . .  D ADDR   00E0H   A   
+ACTION_JMP. . . . .  C ADDR   00BCH   A   
+ANYKEY. . . . . . .  C ADDR   00C2H   A   
+CUR_ST. . . . . . .  D ADDR   0040H   A   
+DGTCODE . . . . . .  D ADDR   0041H   A   
+DONOTHING . . . . .  C ADDR   00E6H   A   
+DO_ACTION . . . . .  C ADDR   0083H   A   
+DO_TEST . . . . . .  C ADDR   0077H   A   
+DPH . . . . . . . .  D ADDR   0083H   A   
+DPL . . . . . . . .  D ADDR   0082H   A   
+EA. . . . . . . . .  B ADDR   00A8H.7 A   
+ET0 . . . . . . . .  B ADDR   00A8H.1 A   
+EXIT_ANY_KEY. . . .  C ADDR   00D0H   A   
+F0. . . . . . . . .  B ADDR   00D0H.5 A   
+FIN2. . . . . . . .  C ADDR   00E5H   A   
+FINDKEY . . . . . .  C ADDR   00E7H   A   
+FSM . . . . . . . .  C ADDR   0060H   A   
+INIT. . . . . . . .  C ADDR   0100H   A   
+KEYBUF. . . . . . .  D ADDR   0050H   A   
+KEYCODE . . . . . .  D ADDR   0042H   A   
+KEYINDX . . . . . .  D ADDR   0044H   A   
+KEYNO . . . . . . .  D ADDR   0043H   A   
+KEY_INDEX . . . . .  N NUMB   0044H   A   
+KEY_WAS_PRESSED . .  C ADDR   00CEH   A   
+L1. . . . . . . . .  C ADDR   011AH   A   
+NO_ACTIONS. . . . .  C ADDR   00ACH   A   
+NO_NEXT . . . . . .  C ADDR   00B4H   A   
+P0. . . . . . . . .  D ADDR   0080H   A   
+PRESSEDKEY. . . . .  N NUMB   0041H   A   
+PSW . . . . . . . .  D ADDR   00D0H   A   
+REPORTKEY . . . . .  C ADDR   00F5H   A   
+RS0 . . . . . . . .  B ADDR   00D0H.3 A   
+RS1 . . . . . . . .  B ADDR   00D0H.4 A   
+SEL_ACTION. . . . .  C ADDR   008CH   A   
+SEL_NEXT. . . . . .  C ADDR   009EH   A   
+SET_NEXT. . . . . .  C ADDR   0095H   A   
+SP. . . . . . . . .  D ADDR   0081H   A   
+STACKST . . . . . .  N NUMB   006FH   A   
+T0_INTR . . . . . .  C ADDR   0030H   A   
+TEST_JMP. . . . . .  C ADDR   00B8H   A   
+TEST_TAB. . . . . .  C ADDR   00A4H   A   
+TH0 . . . . . . . .  D ADDR   008CH   A   
+TH0COUNT. . . . . .  N NUMB   003CH   A   
+THEKEY. . . . . . .  C ADDR   00D1H   A   
+THE_KEY_NOT_PRESSED  C ADDR   00E3H   A   
+TL0 . . . . . . . .  D ADDR   008AH   A   
+TL0COUNT. . . . . .  N NUMB   00B0H   A   
+TR0 . . . . . . . .  B ADDR   0088H.4 A   
+YES_ACTIONS . . . .  C ADDR   00A8H   A   
+YES_NEXT. . . . . .  C ADDR   00B0H   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)
